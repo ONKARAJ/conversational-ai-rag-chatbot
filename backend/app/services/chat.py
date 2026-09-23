@@ -110,7 +110,18 @@ class ChatService:
                     "context": context_block,
                     "model_name": settings.groq_model
                 },
-                config={"configurable": {"session_id": conversation_id}},
+                config={
+                    "configurable": {"session_id": conversation_id},
+                    "run_name": "conversation_turn",
+                    "tags": ["chat", "rag" if hits else "no-rag"],
+                    "metadata": {
+                        "conversation_id": conversation_id,
+                        "language": resolved_language,
+                        "rag_enabled": wants_rag,
+                        "retrieved_documents": len(hits),
+                        "model": settings.groq_model,
+                    },
+                },
             )
         except AppError:
             raise

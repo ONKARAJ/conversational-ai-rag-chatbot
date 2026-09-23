@@ -40,9 +40,13 @@ async def lifespan(app: FastAPI):
     rag_service.startup()
     chat_service.startup()
     logger.info(
-        "Ready. model=%s | llm_configured=%s | rag_available=%s (%d docs)",
+        "Ready. model=%s | llm_configured=%s | langsmith_tracing=%s | "
+        "langsmith_configured=%s | project=%s | rag_available=%s (%d docs)",
         settings.groq_model,
         settings.llm_configured,
+        settings.langsmith_tracing,
+        settings.langsmith_configured,
+        settings.langsmith_project,
         rag_service.available,
         rag_service.document_count,
     )

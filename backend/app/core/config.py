@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # --- Credentials -------------------------------------------------------
     groq_api_key: str | None = Field(default=None, alias="GROQ_API_KEY")
     hf_token: str | None = Field(default=None, alias="HF_TOKEN")
+    langsmith_tracing: bool = Field(default=False, alias="LANGSMITH_TRACING")
+    langsmith_api_key: str | None = Field(default=None, alias="LANGSMITH_API_KEY")
+    langsmith_project: str = Field(
+        default="conversational-ai-rag-chatbot", alias="LANGSMITH_PROJECT"
+    )
 
     # --- Models ------------------------------------------------------------
     # Same model the notebook used.
@@ -78,6 +83,12 @@ class Settings(BaseSettings):
     def llm_configured(self) -> bool:
         return bool(self.groq_api_key and self.groq_api_key.strip())
 
+    @property
+    def langsmith_configured(self) -> bool:
+        return self.langsmith_tracing and bool(
+            self.langsmith_api_key and self.langsmith_api_key.strip()
+        )
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -88,6 +99,13 @@ def get_settings() -> Settings:
     if settings.hf_token:
         os.environ.setdefault("HF_TOKEN", settings.hf_token)
         os.environ.setdefault("HUGGINGFACEHUB_API_TOKEN", settings.hf_token)
+
+    # LangSmith's automatic LangChain callback reads process environment
+    # variables. Pydantic loads them from .env without exporting them.
+    os.environ["LANGSMITH_TRACING"] = str(settings.langsmith_tracing).lower()
+    os.environ["LANGSMITH_PROJECT"] = settings.langsmith_project
+    if settings.langsmith_api_key:
+        os.environ.setdefault("LANGSMITH_API_KEY", settings.langsmith_api_key)
 
     # Make sure local data directories exist before SQLite/Chroma touch them.
     Path(settings.chroma_dir).mkdir(parents=True, exist_ok=True)

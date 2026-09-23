@@ -25,6 +25,7 @@ of the notebook are reused and which were refactored, and why.
 - [How memory works](#how-memory-works)
 - [Why message trimming matters](#why-message-trimming-matters)
 - [How RAG works](#how-rag-works)
+- [LangSmith tracing](#langsmith-tracing)
 - [Two databases, two jobs](#two-databases-two-jobs)
 - [API reference](#api-reference)
 - [Project structure](#project-structure)
@@ -166,6 +167,37 @@ npm run dev
 Open **http://localhost:5173**.
 
 Interactive API docs are at **http://localhost:8000/docs**.
+
+### LangSmith tracing
+
+The backend uses LangChain's built-in LangSmith callback. It traces the
+question, model response, model run, latency, errors, and the conversation id
+metadata. The React app never receives the LangSmith key.
+
+For local development, add these values to the root `.env` file (or
+`backend/.env`) and restart the backend:
+
+```dotenv
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=your_langsmith_api_key_here
+LANGSMITH_PROJECT=conversational-ai-rag-chatbot
+```
+
+On Render, add the same three variables under **Dashboard → Service →
+Environment → Environment Variables**. Store the real key as a secret value;
+do not put it in the repository or any `frontend/.env` file. The backend startup
+log reports tracing and configuration status without printing the key.
+
+To verify a trace, create a conversation and send a message through the app (or
+the `POST /api/conversations/{id}/messages` endpoint). Open the LangSmith
+workspace, select the `conversational-ai-rag-chatbot` project, and open the
+newest `conversation_turn` run. The run contains the question and response;
+its metadata includes `conversation_id`, `model`, and retrieved document count.
+The model child run shows the provider call, timing, and any error details.
+
+If the project is empty, confirm the backend log says
+`langsmith_tracing=True | langsmith_configured=True`, then restart and send a
+new message. A real `LANGSMITH_API_KEY` is required for traces to be uploaded.
 
 **Optional — verify the backend without spending a single token:**
 
