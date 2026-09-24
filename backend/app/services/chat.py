@@ -35,7 +35,7 @@ from app.core.errors import (
 from app.models import ROLE_AI, ROLE_HUMAN, Message, utcnow
 from app.services import conversations as conversation_service
 from app.services.history import content_to_text
-from app.services.llm import build_conversational_chain, format_context
+from app.services.llm import build_conversational_chain, build_langsmith_tracer, format_context
 from app.services.rag import rag_service
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,7 @@ class ChatService:
         conversation_id: str,
         content: str,
         *,
+        session_id: str,
         language: str | None = None,
         use_rag: bool | None = None,
     ) -> dict[str, Any]:
@@ -88,7 +89,9 @@ class ChatService:
             raise EmptyMessage()
 
         with SessionLocal() as db:
-            conversation = conversation_service.get_conversation(db, conversation_id)
+            conversation = conversation_service.get_conversation(
+                db, conversation_id, session_id=session_id
+            )
             resolved_language = (language or conversation.language or settings.default_language).strip()
             wants_rag = conversation.rag_enabled if use_rag is None else use_rag
             is_first_message = not conversation.messages
@@ -112,10 +115,12 @@ class ChatService:
                 },
                 config={
                     "configurable": {"session_id": conversation_id},
+                    "callbacks": [tracer] if (tracer := build_langsmith_tracer()) else None,
                     "run_name": "conversation_turn",
                     "tags": ["chat", "rag" if hits else "no-rag"],
                     "metadata": {
                         "conversation_id": conversation_id,
+                        "client_session_id": session_id,
                         "language": resolved_language,
                         "rag_enabled": wants_rag,
                         "retrieved_documents": len(hits),
@@ -147,7 +152,9 @@ class ChatService:
             user_row = saved.get(ROLE_HUMAN)
             ai_row = saved.get(ROLE_AI)
 
-            conversation = conversation_service.get_conversation(db, conversation_id)
+            conversation = conversation_service.get_conversation(
+                db, conversation_id, session_id=session_id
+            )
             if is_first_message and current_title == conversation_service.DEFAULT_TITLE:
                 conversation.title = conversation_service.title_from_first_message(question)
             conversation.updated_at = utcnow()

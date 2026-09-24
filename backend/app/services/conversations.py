@@ -21,12 +21,14 @@ MAX_TITLE_LENGTH = 60
 def create_conversation(
     db: Session,
     *,
+    session_id: str,
     title: str | None = None,
     language: str | None = None,
     rag_enabled: bool | None = None,
 ) -> Conversation:
     conversation = Conversation(
         id=new_conversation_id(),
+        session_id=session_id,
         title=(title or DEFAULT_TITLE).strip()[:255] or DEFAULT_TITLE,
         language=(language or settings.default_language).strip()[:64],
         rag_enabled=settings.rag_enabled if rag_enabled is None else rag_enabled,
@@ -42,9 +44,11 @@ def create_conversation(
     return conversation
 
 
-def list_conversations(db: Session, *, search: str | None = None, limit: int = 200) -> list[Conversation]:
+def list_conversations(
+    db: Session, *, session_id: str, search: str | None = None, limit: int = 200
+) -> list[Conversation]:
     """Most recently updated first. `search` matches titles and message bodies."""
-    statement = select(Conversation)
+    statement = select(Conversation).where(Conversation.session_id == session_id)
 
     if search and search.strip():
         pattern = f"%{search.strip().lower()}%"
@@ -63,8 +67,13 @@ def list_conversations(db: Session, *, search: str | None = None, limit: int = 2
         raise StorageError(detail=str(exc)) from exc
 
 
-def get_conversation(db: Session, conversation_id: str) -> Conversation:
-    conversation = db.get(Conversation, conversation_id)
+def get_conversation(db: Session, conversation_id: str, *, session_id: str) -> Conversation:
+    conversation = db.scalar(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.session_id == session_id,
+        )
+    )
     if conversation is None:
         raise ConversationNotFound()
     return conversation
@@ -74,11 +83,12 @@ def update_conversation(
     db: Session,
     conversation_id: str,
     *,
+    session_id: str,
     title: str | None = None,
     language: str | None = None,
     rag_enabled: bool | None = None,
 ) -> Conversation:
-    conversation = get_conversation(db, conversation_id)
+    conversation = get_conversation(db, conversation_id, session_id=session_id)
     if title is not None:
         conversation.title = title[:255]
     if language is not None:
@@ -96,8 +106,8 @@ def update_conversation(
     return conversation
 
 
-def delete_conversation(db: Session, conversation_id: str) -> None:
-    conversation = get_conversation(db, conversation_id)
+def delete_conversation(db: Session, conversation_id: str, *, session_id: str) -> None:
+    conversation = get_conversation(db, conversation_id, session_id=session_id)
     try:
         # Messages go with it via cascade="all, delete-orphan".
         db.delete(conversation)

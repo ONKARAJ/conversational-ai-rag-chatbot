@@ -155,6 +155,20 @@ def build_conversational_chain(model: Runnable | None = None) -> RunnableWithMes
     )
 
 
+@lru_cache
+def build_langsmith_tracer() -> Any | None:
+    """Build an explicit tracer for deployed environments when configured."""
+    if not settings.langsmith_configured:
+        return None
+    try:
+        from langchain_core.tracers import LangChainTracer
+
+        return LangChainTracer(project_name=settings.langsmith_project)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("LangSmith tracer could not be initialized: %s", exc)
+        return None
+
+
 def format_context(documents: list[tuple[str, str]]) -> str:
     """Render retrieved chunks into the {context} prompt slot."""
     if not documents:

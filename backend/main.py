@@ -39,6 +39,8 @@ async def lifespan(app: FastAPI):
     init_db()
     rag_service.startup()
     chat_service.startup()
+    logger.info("LangSmith tracing enabled: %s", settings.langsmith_tracing)
+    logger.info("LangSmith project: %s", settings.langsmith_project)
     logger.info(
         "Ready. model=%s | llm_configured=%s | langsmith_tracing=%s | "
         "langsmith_configured=%s | project=%s | rag_available=%s (%d docs)",

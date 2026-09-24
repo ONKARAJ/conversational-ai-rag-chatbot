@@ -9,6 +9,36 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 const DEFAULT_TIMEOUT_MS = 90_000 // model answers can legitimately take a while
+const CLIENT_SESSION_STORAGE_KEY = 'conversational-ai-client-session-id'
+let memorySessionId = null
+
+function createSessionId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  const bytes = new Uint8Array(16)
+  globalThis.crypto.getRandomValues(bytes)
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  return [...bytes]
+    .map((byte, index) => `${byte.toString(16).padStart(2, '0')}${[3, 5, 7, 9].includes(index) ? '-' : ''}`)
+    .join('')
+}
+
+export function getOrCreateSessionId() {
+  if (memorySessionId) return memorySessionId
+  try {
+    const stored = window.localStorage.getItem(CLIENT_SESSION_STORAGE_KEY)
+    if (stored) {
+      memorySessionId = stored
+      return stored
+    }
+    memorySessionId = createSessionId()
+    window.localStorage.setItem(CLIENT_SESSION_STORAGE_KEY, memorySessionId)
+    return memorySessionId
+  } catch {
+    memorySessionId = memorySessionId || createSessionId()
+    return memorySessionId
+  }
+}
 
 export class ApiError extends Error {
   constructor(message, { code = 'unknown_error', status = 0 } = {}) {
@@ -30,7 +60,10 @@ async function request(path, { method = 'GET', body, signal, timeout = DEFAULT_T
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: {
+        'X-Client-Session-ID': getOrCreateSessionId(),
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     })

@@ -34,6 +34,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_conversation_id)
+    session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(255), default="New chat", nullable=False)
     # Per-conversation settings. `language` feeds the {language} prompt variable
     # from the notebook; `rag_enabled` toggles retrieval for this conversation.

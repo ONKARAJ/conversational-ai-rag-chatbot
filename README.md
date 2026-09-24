@@ -170,16 +170,16 @@ Interactive API docs are at **http://localhost:8000/docs**.
 
 ### LangSmith tracing
 
-The backend uses LangChain's built-in LangSmith callback. It traces the
-question, model response, model run, latency, errors, and the conversation id
-metadata. The React app never receives the LangSmith key.
+The backend uses an explicit LangChain LangSmith tracer on the production
+chain invocation. It traces the question, model response, model run, latency,
+errors, and conversation metadata. The React app never receives the LangSmith key.
 
 For local development, add these values to the root `.env` file (or
 `backend/.env`) and restart the backend:
 
 ```dotenv
 LANGSMITH_TRACING=true
-LANGSMITH_API_KEY=your_langsmith_api_key_here
+LANGSMITH_API_KEY=
 LANGSMITH_PROJECT=conversational-ai-rag-chatbot
 ```
 
@@ -198,6 +198,16 @@ The model child run shows the provider call, timing, and any error details.
 If the project is empty, confirm the backend log says
 `langsmith_tracing=True | langsmith_configured=True`, then restart and send a
 new message. A real `LANGSMITH_API_KEY` is required for traces to be uploaded.
+
+### Anonymous session privacy
+
+The browser creates one cryptographically random UUID and stores it in
+`localStorage`. Every API request sends it in the `X-Client-Session-ID` header.
+The backend stores that value on each new conversation and scopes list, create,
+read, rename, delete, and message operations to it. Changing only a
+conversation id cannot cross that boundary; another browser or device has a
+different UUID. Existing conversations from before this field was added remain
+in SQLite but are unassigned and are not returned to any anonymous session.
 
 **Optional — verify the backend without spending a single token:**
 

@@ -100,9 +100,10 @@ def get_settings() -> Settings:
         os.environ.setdefault("HF_TOKEN", settings.hf_token)
         os.environ.setdefault("HUGGINGFACEHUB_API_TOKEN", settings.hf_token)
 
-    # LangSmith's automatic LangChain callback reads process environment
-    # variables. Pydantic loads them from .env without exporting them.
-    os.environ["LANGSMITH_TRACING"] = str(settings.langsmith_tracing).lower()
+    # The production chain receives an explicit tracer. Disable the implicit
+    # callback to prevent duplicate root runs while preserving the env switch.
+    os.environ["LANGSMITH_TRACING"] = "false"
+    os.environ["LANGCHAIN_TRACING_V2"] = "false"
     os.environ["LANGSMITH_PROJECT"] = settings.langsmith_project
     if settings.langsmith_api_key:
         os.environ.setdefault("LANGSMITH_API_KEY", settings.langsmith_api_key)

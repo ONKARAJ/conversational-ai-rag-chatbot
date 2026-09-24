@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.core.config import settings
@@ -46,3 +46,12 @@ def init_db() -> None:
     from app import models  # noqa: F401  (import registers the models)
 
     Base.metadata.create_all(bind=engine)
+    if "session_id" not in {column["name"] for column in inspect(engine).get_columns("conversations")}:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE conversations ADD COLUMN session_id VARCHAR(36)"))
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_conversations_session_id "
+                    "ON conversations (session_id)"
+                )
+            )
